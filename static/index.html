@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Image Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        input[type="file"] {
+            margin-bottom: 10px;
+        }
+
+        #output {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        img {
+            width: 300px;
+            margin: 10px;
+        }
+
+        a.download-link {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+<h1>Image Converter</h1>
+<form id="uploadForm" enctype="multipart/form-data">
+    <input type="file" name="image" accept=".jpg, .jpeg, .png">
+    <input type="button" value="Convert to WebP" onclick="convertToWebP()">
+</form>
+<div id="output"></div>
+
+<script>
+    function convertToWebP() {
+        const form = document.getElementById("uploadForm");
+        const formData = new FormData(form);
+        fetch('/convert', {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                const img = document.createElement('img');
+                img.src = data.dataURL;
+                document.getElementById("output").appendChild(img);
+
+                const downloadLink = document.createElement('a');
+                downloadLink.href = data.dataURL;
+                downloadLink.download = data.fileName;
+                downloadLink.innerText = 'Download';
+                downloadLink.classList.add('download-link');
+                document.getElementById("output").appendChild(downloadLink);
+            })
+            .catch(error => console.error('Error:', error));
+    }
+</script>
+</body>
+
+</html>
