@@ -5,16 +5,17 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/chai2010/webp"
+	"github.com/joho/godotenv"
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
-
-	"github.com/chai2010/webp"
-	"github.com/joho/godotenv"
+	"time"
 )
 
 type ConversionResponse struct {
@@ -23,6 +24,8 @@ type ConversionResponse struct {
 }
 
 func convertToWebP(w http.ResponseWriter, r *http.Request) {
+	startTime := time.Now()
+
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
@@ -41,8 +44,15 @@ func convertToWebP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Получаем значение степени сжатия из переменной окружения COMPRESS_RATIO
+	compressRatioStr := os.Getenv("COMPRESS_RATIO")
+	compressRatio, err := strconv.Atoi(compressRatioStr)
+	if err != nil || compressRatio <= 0 {
+		compressRatio = 80 // Значение по умолчанию, если переменная окружения не задана или имеет некорректное значение.
+	}
+
 	webpBuf := new(bytes.Buffer)
-	if err := webp.Encode(webpBuf, img, nil); err != nil {
+	if err := webp.Encode(webpBuf, img, &webp.Options{Lossless: false, Quality: float32(compressRatio)}); err != nil {
 		http.Error(w, "Error converting to webp", http.StatusInternalServerError)
 		return
 	}
@@ -61,6 +71,12 @@ func convertToWebP(w http.ResponseWriter, r *http.Request) {
 	// Отправляем ответ в формате JSON
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+
+	// Выводим информацию в лог
+	fileSize := len(webpBuf.Bytes())
+	clientIP := r.RemoteAddr
+	duration := time.Since(startTime)
+	log.Printf("Time: %s, File: %s, Size: %d bytes, IP: %s, Result: Success, Duration: %s", startTime.Format("2006-01-02 15:04:05"), fileName, fileSize, clientIP, duration)
 }
 
 func serveUI(w http.ResponseWriter, r *http.Request) {
@@ -77,6 +93,16 @@ func main() {
 	if port == "" {
 		port = "8080" // Порт по умолчанию, если переменная окружения не задана.
 	}
+
+	compressRatioStr := os.Getenv("COMPRESS_RATIO")
+	compressRatio, err := strconv.Atoi(compressRatioStr)
+	if err != nil || compressRatio <= 0 {
+		compressRatio = 80 // Значение по умолчанию, если переменная окружения не задана или имеет некорректное значение.
+	}
+
+	// Выводим значения переменных в консоль
+	log.Printf("PORT=%s\n", port)
+	log.Printf("COMPRESS_RATIO=%d\n", compressRatio)
 
 	http.HandleFunc("/convert", convertToWebP)
 	http.HandleFunc("/ui", serveUI)
